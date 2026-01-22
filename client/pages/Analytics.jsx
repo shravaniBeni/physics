@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import { Card } from '../Components/ui/card';
+import { apiRequest, API_CONFIG } from '../config/api';
+import { Card } from '../Components/ui/card'; 
 import { Badge } from '../Components/ui/badge';
 import { Skeleton } from '../Components/ui/skeleton';
 import { 
@@ -29,6 +29,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import StatsCard from '../components/ui/StatsCard';
+import { useAuth } from '../contexts/AuthContext';
 
 const categoryColors = {
   mechanics: '#3b82f6',
@@ -47,27 +48,25 @@ const categoryIcons = {
 };
 
 export default function Analytics() {
-  const { data: experiments = [], isLoading: loadingExperiments } = useQuery({
+  const { user } = useAuth();
+
+  const { data: experimentsData, isLoading: loadingExperiments } = useQuery({
     queryKey: ['experiments'],
-    queryFn: () => base44.entities.Experiment.list(),
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.EXPERIMENTS.LIST),
   });
+
+  const experiments = experimentsData?.experiments || [];
 
   const { data: progress = [], isLoading: loadingProgress } = useQuery({
     queryKey: ['user-progress'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.UserProgress.filter({ user_email: user.email });
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.PROGRESS.LIST),
+    enabled: !!user,
   });
 
   const { data: quizAttempts = [], isLoading: loadingQuizzes } = useQuery({
     queryKey: ['quiz-attempts'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.QuizAttempt.filter({ user_email: user.email }, '-created_date');
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.QUIZ.ATTEMPTS),
+    enabled: !!user,
   });
 
   const isLoading = loadingExperiments || loadingProgress || loadingQuizzes;
@@ -83,7 +82,7 @@ export default function Analytics() {
   const categoryProgress = Object.keys(categoryColors).map(cat => {
     const catExperiments = experiments.filter(e => e.category === cat);
     const completed = catExperiments.filter(e => 
-      progress.some(p => p.experiment_id === e.id && p.completed)
+      progress.some(p => (p.experiment_id === e.id || p.experiment_id?._id === e.id) && p.completed)
     ).length;
     return {
       name: cat.charAt(0).toUpperCase() + cat.slice(1),
@@ -95,7 +94,7 @@ export default function Analytics() {
 
   // Quiz performance by category
   const quizByCategory = Object.keys(categoryColors).map(cat => {
-    const catQuizzes = quizAttempts.filter(q => q.category === cat);
+    const catQuizzes = quizAttempts.filter(q => q.experiment_id?.category === cat);
     const avgScore = catQuizzes.length > 0
       ? Math.round(catQuizzes.reduce((sum, q) => sum + (q.correct_answers / q.total_questions) * 100, 0) / catQuizzes.length)
       : 0;
@@ -108,8 +107,8 @@ export default function Analytics() {
 
   // Recent activity
   const recentQuizzes = quizAttempts.slice(0, 5).map(q => ({
-    date: new Date(q.created_date).toLocaleDateString(),
-    category: q.category,
+    date: new Date(q.createdAt).toLocaleDateString(),
+    category: q.experiment_id?.category || 'unknown',
     score: Math.round((q.correct_answers / q.total_questions) * 100)
   }));
 

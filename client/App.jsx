@@ -1,5 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './Components/auth/ProtectedRoute';
+import Login from './Components/auth/Login';
+import Register from './Components/auth/Register';
+import UserProfile from './Components/auth/UserProfile';
 import Layout from './Layout';
 
 // Pages
@@ -28,65 +33,109 @@ function AppContent() {
   return (
     <Router>
       <Routes>
-        {/* Home page without layout */}
+        {/* Public routes */}
         <Route path="/" element={<Home />} />
         
-        {/* App pages with layout */}
+        {/* Auth routes (only accessible when not logged in) */}
+        <Route 
+          path="/login" 
+          element={
+            <ProtectedRoute requireAuth={false}>
+              <Login />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/register" 
+          element={
+            <ProtectedRoute requireAuth={false}>
+              <Register />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Protected routes (require authentication) */}
         <Route path="/dashboard" element={
-          <Layout currentPageName="Dashboard">
-            <Dashboard />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="Dashboard">
+              <Dashboard />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Layout currentPageName="Profile">
+              <UserProfile />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/virtuallab" element={
-          <Layout currentPageName="VirtualLab">
-            <VirtualLab />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="VirtualLab">
+              <VirtualLab />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/experimentdetail" element={
-          <Layout currentPageName="ExperimentDetail">
-            <ExperimentDetail />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="ExperimentDetail">
+              <ExperimentDetail />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/experimentguide" element={
-          <Layout currentPageName="ExperimentGuide">
-            <ExperimentGuide />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="ExperimentGuide">
+              <ExperimentGuide />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/aiassistant" element={
-          <Layout currentPageName="AIAssistant">
-            <AIAssistant />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="AIAssistant">
+              <AIAssistant />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/conceptvisualizer" element={
-          <Layout currentPageName="ConceptVisualizer">
-            <ConceptVisualizer />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="ConceptVisualizer">
+              <ConceptVisualizer />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/practice" element={
-          <Layout currentPageName="Practice">
-            <Practice />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="Practice">
+              <Practice />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/analytics" element={
-          <Layout currentPageName="Analytics">
-            <Analytics />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="Analytics">
+              <Analytics />
+            </Layout>
+          </ProtectedRoute>
         } />
         
         <Route path="/leaderboard" element={
-          <Layout currentPageName="Leaderboard">
-            <Leaderboard />
-          </Layout>
+          <ProtectedRoute>
+            <Layout currentPageName="Leaderboard">
+              <Leaderboard />
+            </Layout>
+          </ProtectedRoute>
         } />
         
-        {/* Redirect unknown routes to dashboard */}
+        {/* Redirect unknown routes to dashboard for authenticated users, home for others */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
@@ -96,7 +145,9 @@ function AppContent() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

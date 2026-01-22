@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiRequest, API_CONFIG } from '../config/api';
 import { Card } from '../Components/ui/card';
 import { Badge } from '../Components/ui/badge';
 import { Avatar } from '../Components/ui/avatar';
@@ -8,39 +8,43 @@ import { Skeleton } from '../Components/ui/skeleton';
 import { Trophy, Medal, Award, Crown, TrendingUp, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../Components/ui/tabs';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Leaderboard() {
-  const [timeframe, setTimeframe] = useState('all-time');
+  const { user } = useAuth();
+  const [timeframe, setTimeframe] = useState('all');
 
-  const { data: allTransactions = [], isLoading } = useQuery({
-    queryKey: ['all-point-transactions'],
-    queryFn: () => base44.entities.PointTransaction.list(),
+  const { data: leaderboard = [], isLoading } = useQuery({
+    queryKey: ['leaderboard', timeframe],
+    queryFn: async () => {
+      try {
+        return await apiRequest(`${API_CONFIG.ENDPOINTS.GAMIFICATION.LEADERBOARD}?period=${timeframe}&limit=50`);
+      } catch (error) {
+        console.error('Failed to load leaderboard:', error);
+        return [];
+      }
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds for real-time updates
   });
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['current-user'],
-    queryFn: () => base44.auth.me(),
+  const { data: userPoints } = useQuery({
+    queryKey: ['user-points'],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest(API_CONFIG.ENDPOINTS.GAMIFICATION.POINTS);
+        return response.transactions.reduce((total, t) => total + (t.points || 0), 0);
+      } catch (error) {
+        console.error('Failed to load user points:', error);
+        return 0;
+      }
+    },
+    enabled: !!user,
   });
 
-  // Calculate leaderboard
-  const userPoints = {};
-  allTransactions.forEach(t => {
-    if (!userPoints[t.user_email]) {
-      userPoints[t.user_email] = 0;
-    }
-    userPoints[t.user_email] += t.points || 0;
-  });
-
-  const leaderboard = Object.entries(userPoints)
-    .map(([email, points]) => ({
-      email,
-      points,
-      name: email.split('@')[0]
-    }))
-    .sort((a, b) => b.points - a.points);
-
-  const currentUserRank = leaderboard.findIndex(u => u.email === currentUser?.email) + 1;
-  const currentUserData = leaderboard.find(u => u.email === currentUser?.email);
+  // Get current user email from auth context
+  const currentUserEmail = user?.email;
+  const currentUserRank = leaderboard.findIndex(u => u.email === currentUserEmail) + 1;
+  const currentUserData = leaderboard.find(u => u.email === currentUserEmail);
 
   const getRankIcon = (rank) => {
     if (rank === 1) return <Crown className="w-6 h-6 text-amber-400" />;
@@ -64,6 +68,21 @@ export default function Leaderboard() {
         <p className="text-slate-400">Compete with fellow physics enthusiasts</p>
       </div>
 
+      {/* Timeframe Selector */}
+      <Tabs value={timeframe} onValueChange={setTimeframe} className="w-full">
+        <TabsList className="bg-slate-800/50 border border-slate-700">
+          <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+            All Time
+          </TabsTrigger>
+          <TabsTrigger value="month" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+            This Month
+          </TabsTrigger>
+          <TabsTrigger value="week" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">
+            This Week
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Your Rank Card */}
       {currentUserData && (
         <Card className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-500/30 p-6">
@@ -79,7 +98,7 @@ export default function Leaderboard() {
             </div>
             <div className="text-right">
               <p className="text-sm text-slate-400">Total Points</p>
-              <p className="text-3xl font-bold text-amber-400">{currentUserData.points}</p>
+              <p className="text-3xl font-bold text-amber-400">{currentUserData.totalPoints}</p>
             </div>
           </div>
         </Card>
@@ -105,9 +124,9 @@ export default function Leaderboard() {
           </div>
         ) : leaderboard.length > 0 ? (
           <div className="p-6 space-y-3">
-            {leaderboard.slice(0, 50).map((user, index) => {
-              const rank = index + 1;
-              const isCurrentUser = user.email === currentUser?.email;
+            {leaderboard.map((user, index) => {
+              const rank = user.rank || index + 1;
+              const isCurrentUser = user.email === currentUserEmail;
 
               return (
                 <motion.div
@@ -129,11 +148,11 @@ export default function Leaderboard() {
                         {/* Avatar & Name */}
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                            {user.name[0].toUpperCase()}
+                            {(user.name || user.email)[0].toUpperCase()}
                           </div>
                           <div>
                             <p className="font-semibold text-white flex items-center gap-2">
-                              {user.name}
+                              {user.name || user.email.split('@')[0]}
                               {isCurrentUser && (
                                 <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">You</Badge>
                               )}
@@ -146,7 +165,7 @@ export default function Leaderboard() {
                       {/* Points */}
                       <div className="flex items-center gap-2">
                         <Zap className="w-5 h-5 text-amber-400" />
-                        <span className="text-xl font-bold text-amber-400">{user.points}</span>
+                        <span className="text-xl font-bold text-amber-400">{user.totalPoints}</span>
                       </div>
                     </div>
                   </Card>
@@ -178,7 +197,11 @@ export default function Leaderboard() {
               </li>
               <li className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-400" />
-                Score 100% on quiz: <span className="text-amber-400 font-bold">+100 points</span>
+                Score 70%+ on quiz: <span className="text-amber-400 font-bold">+10-30 points</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-400" />
+                AI-generated quiz bonus: <span className="text-amber-400 font-bold">+20% extra</span>
               </li>
               <li className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-400" />
@@ -186,7 +209,7 @@ export default function Leaderboard() {
               </li>
               <li className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-400" />
-                Earn badges: <span className="text-amber-400 font-bold">+25-200 points</span>
+                Earn badges: <span className="text-amber-400 font-bold">+100 points</span>
               </li>
             </ul>
           </div>

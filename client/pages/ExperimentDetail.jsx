@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiRequest, API_CONFIG } from '../config/api';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { Button } from '../Components/ui/button';
@@ -16,7 +16,8 @@ import {
   BookOpen,
   PlayCircle,
   CheckCircle2,
-  Clock
+  Clock,
+  Bot
 } from 'lucide-react';
 import { Skeleton } from '../Components/ui/skeleton';
 import PendulumSimulation from '../Components/simulations/PendulumSimulation';
@@ -24,6 +25,11 @@ import OhmsLawSimulation from '../Components/simulations/OhmsLawSimulation';
 import ProjectileSimulation from '../Components/simulations/ProjectileSimulation';
 import WaveSimulation from '../Components/simulations/WaveSimulation';
 import LensSimulation from '../Components/simulations/LensSimulation';
+import ThermalSimulation from '../Components/simulations/ThermalSimulation';
+import FreefallSimulation from '../Components/simulations/FreefallSimulation';
+import RCCircuitSimulation from '../Components/simulations/RCCircuitSimulation';
+import ExperimentAI from '../Components/ExperimentAI';
+import ExperimentQuiz from '../Components/ExperimentQuiz';
 
 const categoryIcons = {
   mechanics: '⚙️',
@@ -43,44 +49,31 @@ export default function ExperimentDetail() {
   const { data: experiment, isLoading } = useQuery({
     queryKey: ['experiment', experimentId],
     queryFn: async () => {
-      const experiments = await base44.entities.Experiment.filter({ id: experimentId });
-      return experiments[0];
+      if (!experimentId) return null;
+      const response = await apiRequest(`${API_CONFIG.ENDPOINTS.EXPERIMENTS.DETAIL}/${experimentId}`);
+      return response;
     },
     enabled: !!experimentId,
   });
 
+  // Simplified progress tracking for now
   const { data: progress } = useQuery({
     queryKey: ['progress', experimentId],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return null;
-      const progressList = await base44.entities.UserProgress.filter({ 
-        user_email: user.email, 
-        experiment_id: experimentId 
-      });
-      return progressList[0];
+      // For now, return null - we can implement progress tracking later
+      return null;
     },
     enabled: !!experimentId,
   });
 
   const updateProgressMutation = useMutation({
     mutationFn: async (data) => {
-      const user = await base44.auth.me();
-      if (!user) return;
-      
-      if (progress) {
-        return base44.entities.UserProgress.update(progress.id, data);
-      } else {
-        return base44.entities.UserProgress.create({
-          user_email: user.email,
-          experiment_id: experimentId,
-          ...data
-        });
-      }
+      // For now, just log the progress update
+      console.log('Progress update:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['progress', experimentId]);
-      queryClient.invalidateQueries(['user-progress']);
     }
   });
 
@@ -99,28 +92,18 @@ export default function ExperimentDetail() {
 
   const markAsCompleted = async () => {
     updateProgressMutation.mutate({ completed: true });
-    
-    // Award points
-    const user = await base44.auth.me();
-    if (user) {
-      await base44.entities.PointTransaction.create({
-        user_email: user.email,
-        points: 50,
-        source: 'experiment',
-        source_id: experimentId,
-        description: `Completed experiment: ${experiment.title}`
-      });
-      queryClient.invalidateQueries(['point-transactions']);
-    }
+    console.log('Experiment marked as completed');
   };
 
   const renderSimulation = () => {
     if (!experiment) return null;
     
-    switch (experiment.simulation_type) {
+    const simulationType = experiment.simulation?.type;
+    
+    switch (simulationType) {
       case 'pendulum':
         return <PendulumSimulation />;
-      case 'ohms_law':
+      case 'ohms-law':
         return <OhmsLawSimulation />;
       case 'projectile':
         return <ProjectileSimulation />;
@@ -128,11 +111,20 @@ export default function ExperimentDetail() {
         return <WaveSimulation />;
       case 'lens':
         return <LensSimulation />;
+      case 'thermal':
+        return <ThermalSimulation />;
+      case 'freefall':
+        return <FreefallSimulation />;
+      case 'rc-circuit':
+        return <RCCircuitSimulation />;
       default:
         return (
           <div className="text-center py-16">
             <PlayCircle className="w-16 h-16 mx-auto text-slate-500 mb-4" />
             <p className="text-slate-400">Simulation coming soon</p>
+            {simulationType && (
+              <p className="text-slate-500 text-sm mt-2">Type: {simulationType}</p>
+            )}
           </div>
         );
     }
@@ -240,6 +232,20 @@ export default function ExperimentDetail() {
             <Target className="w-4 h-4 mr-2" />
             Theory
           </TabsTrigger>
+          <TabsTrigger 
+            value="quiz"
+            className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400"
+          >
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            Quiz
+          </TabsTrigger>
+          <TabsTrigger 
+            value="ai-assistant"
+            className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400"
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            AI Assistant
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="simulation" className="mt-6">
@@ -254,24 +260,37 @@ export default function ExperimentDetail() {
                 <div className="p-2 rounded-lg bg-cyan-500/20">
                   <Target className="w-5 h-5 text-cyan-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-white">Aim</h3>
+                <h3 className="text-lg font-semibold text-white">Objectives</h3>
               </div>
-              <p className="text-slate-300">{experiment.aim || 'To understand the fundamental principles of this experiment.'}</p>
+              <ul className="space-y-2">
+                {(experiment.objectives || ['To understand the fundamental principles of this experiment.']).map((objective, i) => (
+                  <li key={i} className="flex items-start gap-2 text-slate-300">
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-2 flex-shrink-0" />
+                    {objective}
+                  </li>
+                ))}
+              </ul>
             </Card>
 
-            {/* Apparatus */}
+            {/* Materials */}
             <Card className="bg-slate-800/50 border-slate-700 p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-purple-500/20">
                   <Beaker className="w-5 h-5 text-purple-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-white">Virtual Apparatus</h3>
+                <h3 className="text-lg font-semibold text-white">Materials</h3>
               </div>
               <ul className="space-y-2">
-                {(experiment.apparatus || ['Interactive simulation controls', 'Parameter sliders', 'Real-time graphs', 'Data display']).map((item, i) => (
+                {(experiment.materials || []).map((material, i) => (
                   <li key={i} className="flex items-center gap-2 text-slate-300">
                     <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                    {item}
+                    <span>{material.name}</span>
+                    {material.quantity && (
+                      <span className="text-slate-500 text-sm">({material.quantity})</span>
+                    )}
+                    {material.optional && (
+                      <span className="text-amber-400 text-xs">(Optional)</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -286,20 +305,17 @@ export default function ExperimentDetail() {
                 <h3 className="text-lg font-semibold text-white">Procedure</h3>
               </div>
               <ol className="space-y-3">
-                {(experiment.procedure || [
-                  'Open the simulation tab',
-                  'Adjust the initial parameters using the sliders',
-                  'Click the Play button to start the simulation',
-                  'Observe the real-time changes in values and graphs',
-                  'Try different parameter combinations',
-                  'Record your observations',
-                  'Mark the experiment as complete when done'
-                ]).map((step, i) => (
+                {(experiment.procedure || []).map((step, i) => (
                   <li key={i} className="flex items-start gap-3 text-slate-300">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm font-medium">
-                      {i + 1}
+                      {step.step || i + 1}
                     </span>
-                    {step}
+                    <div>
+                      <p>{step.instruction || step}</p>
+                      {step.notes && (
+                        <p className="text-slate-500 text-sm mt-1">{step.notes}</p>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ol>
@@ -331,27 +347,74 @@ export default function ExperimentDetail() {
           <div className="space-y-6">
             <Card className="bg-slate-800/50 border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Theory</h3>
-              <p className="text-slate-300 leading-relaxed">
-                {experiment.theory || 'This experiment demonstrates fundamental physics principles through interactive simulation. By adjusting various parameters, you can observe how changes affect the system and verify theoretical predictions.'}
-              </p>
+              <div className="space-y-4">
+                {experiment.theory?.background && (
+                  <p className="text-slate-300 leading-relaxed">
+                    {experiment.theory.background}
+                  </p>
+                )}
+                
+                {experiment.theory?.concepts && experiment.theory.concepts.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-medium text-white mb-2">Key Concepts</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {experiment.theory.concepts.map((concept, i) => (
+                        <span key={i} className="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 text-sm">
+                          {concept}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </Card>
 
-            {experiment.formulas && experiment.formulas.length > 0 && (
+            {experiment.theory?.formulas && experiment.theory.formulas.length > 0 && (
               <Card className="bg-slate-800/50 border-slate-700 p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">Key Formulas</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {experiment.formulas.map((formula, i) => (
+                  {experiment.theory.formulas.map((formula, i) => (
                     <div key={i} className="p-4 rounded-xl bg-slate-900/50 border border-slate-700">
                       <p className="text-sm text-slate-400 mb-2">{formula.name}</p>
-                      <p className="text-xl font-mono text-cyan-400">{formula.expression}</p>
-                      {formula.variables && (
-                        <p className="text-xs text-slate-500 mt-2">{formula.variables}</p>
+                      <p className="text-xl font-mono text-cyan-400">{formula.formula}</p>
+                      {formula.variables && formula.variables.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-xs text-slate-500">Where:</p>
+                          {formula.variables.map((variable, j) => (
+                            <p key={j} className="text-xs text-slate-400">
+                              <span className="font-mono text-cyan-400">{variable.symbol}</span> = {variable.description} ({variable.unit})
+                            </p>
+                          ))}
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
               </Card>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="quiz" className="mt-6">
+          <ExperimentQuiz experiment={experiment} />
+        </TabsContent>
+
+        <TabsContent value="ai-assistant" className="mt-6">
+          <div className="space-y-6">
+            <ExperimentAI experiment={experiment} />
+            
+            <Card className="bg-slate-800/50 border-slate-700 p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Need More Help?</h3>
+              <p className="text-slate-300 mb-4">
+                Visit the full AI Assistant for detailed conversations and personalized explanations.
+              </p>
+              <Link to={`${createPageUrl('AIAssistant')}?experiment=${experiment._id}&title=${encodeURIComponent(experiment.title)}`}>
+                <Button className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700">
+                  <Bot className="w-4 h-4 mr-2" />
+                  Open Full AI Assistant
+                </Button>
+              </Link>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>

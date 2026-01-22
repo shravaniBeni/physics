@@ -3,8 +3,9 @@ import { createPageUrl } from '../../utils';
 import { Badge } from './badge';
 import { Button } from './button';
 import { Card } from './card';
-import { Play, Clock, CheckCircle, Star } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Play, Clock, CheckCircle, Star, Bot } from 'lucide-react';
+import { cn } from '../../../lib/utils';
+import ExperimentAIButton from '../ExperimentAIButton';
 
 const difficultyColors = {
   easy: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
@@ -27,7 +28,7 @@ export default function ExperimentCard({ experiment, progress, compact = false }
 
   if (compact) {
     return (
-      <Link to={createPageUrl(`ExperimentDetail?id=${experiment.id}`)}>
+      <Link to={createPageUrl(`ExperimentDetail?id=${experiment._id}`)}>
         <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-800/30 border border-slate-700 hover:border-cyan-500/50 transition-all group">
           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center text-2xl">
             {categoryIcons[experiment.category] || '🔬'}
@@ -87,12 +88,13 @@ export default function ExperimentCard({ experiment, progress, compact = false }
         )}
 
         <div className="flex items-center gap-3">
-          <Link to={createPageUrl(`ExperimentDetail?id=${experiment.id}`)} className="flex-1">
+          <Link to={createPageUrl(`ExperimentDetail?id=${experiment._id}`)} className="flex-1">
             <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white">
               <Play className="w-4 h-4 mr-2" />
               {isCompleted ? 'Review' : 'Start'} Experiment
             </Button>
           </Link>
+          <ExperimentAIButton experiment={experiment} />
         </div>
       </div>
     </Card>

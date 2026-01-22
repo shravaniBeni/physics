@@ -1,20 +1,20 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiRequest, API_CONFIG } from '../../config/api';
 import { Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function PointsDisplay({ compact = false }) {
-  const { data: transactions = [] } = useQuery({
+  const { user } = useAuth();
+
+  const { data: pointsData } = useQuery({
     queryKey: ['point-transactions'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.PointTransaction.filter({ user_email: user.email });
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.GAMIFICATION.POINTS),
+    enabled: !!user,
   });
 
-  const totalPoints = transactions.reduce((sum, t) => sum + (t.points || 0), 0);
+  const totalPoints = pointsData?.transactions?.reduce((sum, t) => sum + (t.points || 0), 0) || 0;
 
   if (compact) {
     return (

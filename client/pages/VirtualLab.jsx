@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiRequest, API_CONFIG } from '../config/api';
 import { Input } from '../Components/ui/input';
 import { Button } from '../Components/ui/button';
 import { Badge } from '../Components/ui/badge';
 import { Skeleton } from '../Components/ui/skeleton';
 import { Search, Filter, X } from 'lucide-react';
 import ExperimentCard from '../Components/ui/ExperimentCard';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 
 const categories = [
   { id: 'all', name: 'All', icon: '🔬' },
@@ -29,27 +29,34 @@ export default function VirtualLab() {
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { data: experiments = [], isLoading } = useQuery({
-    queryKey: ['experiments'],
-    queryFn: () => base44.entities.Experiment.list(),
-  });
-
-  const { data: progress = [] } = useQuery({
-    queryKey: ['user-progress'],
+  const { data: experimentsData, isLoading } = useQuery({
+    queryKey: ['experiments', selectedCategory, selectedDifficulty, searchTerm],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.UserProgress.filter({ user_email: user.email });
+      const params = new URLSearchParams();
+      if (selectedCategory !== 'all') params.append('category', selectedCategory);
+      if (selectedDifficulty !== 'all') params.append('difficulty', selectedDifficulty);
+      if (searchTerm) params.append('search', searchTerm);
+      
+      const queryString = params.toString();
+      const endpoint = `${API_CONFIG.ENDPOINTS.EXPERIMENTS.LIST}${queryString ? `?${queryString}` : ''}`;
+      
+      return await apiRequest(endpoint);
     },
   });
 
-  const filteredExperiments = experiments.filter(exp => {
-    const matchesSearch = exp.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         exp.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || exp.category === selectedCategory;
-    const matchesDifficulty = selectedDifficulty === 'all' || exp.difficulty === selectedDifficulty;
-    return matchesSearch && matchesCategory && matchesDifficulty;
-  });
+  const experiments = experimentsData?.experiments || [];
+
+  // Remove the progress query for now since we're focusing on experiments
+  // const { data: progress = [] } = useQuery({
+  //   queryKey: ['user-progress'],
+  //   queryFn: async () => {
+  //     const user = await base44.auth.me();
+  //     if (!user) return [];
+  //     return base44.entities.UserProgress.filter({ user_email: user.email });
+  //   },
+  // });
+
+  const filteredExperiments = experiments;
 
   const experimentCounts = categories.reduce((acc, cat) => {
     acc[cat.id] = cat.id === 'all' 
@@ -163,9 +170,9 @@ export default function VirtualLab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredExperiments.map(exp => (
               <ExperimentCard
-                key={exp.id}
+                key={exp._id}
                 experiment={exp}
-                progress={progress.find(p => p.experiment_id === exp.id)}
+                progress={null}
               />
             ))}
           </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiRequest, API_CONFIG } from '../config/api';
 import { Button } from '../Components/ui/button';
 import { Card } from '../Components/ui/card';
 import { Badge } from '../Components/ui/badge';
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 const quizQuestions = {
   mechanics: {
@@ -179,6 +180,7 @@ const categories = ['mechanics', 'electricity', 'waves', 'optics', 'thermodynami
 const difficulties = ['easy', 'medium', 'hard'];
 
 export default function Practice() {
+  const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -195,42 +197,36 @@ export default function Practice() {
 
   const saveQuizMutation = useMutation({
     mutationFn: async () => {
-      const user = await base44.auth.me();
       if (!user) return;
       
-      const quiz = await base44.entities.QuizAttempt.create({
-        user_email: user.email,
-        category: selectedCategory,
-        difficulty: selectedDifficulty,
+      // Create a practice quiz attempt
+      const quizData = {
+        experiment_id: null, // Practice quiz, not tied to specific experiment
         total_questions: questions.length,
         correct_answers: score,
         time_taken_seconds: 0,
-        questions_data: answers
+        questions_data: answers,
+        is_ai_generated: false,
+        category: selectedCategory,
+        difficulty: selectedDifficulty
+      };
+
+      // Since we don't have a practice quiz endpoint, we'll use the regular quiz submit
+      // but with a special flag or create a separate endpoint
+      const response = await apiRequest(API_CONFIG.ENDPOINTS.QUIZ.SUBMIT, {
+        method: 'POST',
+        body: JSON.stringify(quizData)
       });
 
-      // Award points based on performance
-      const percentage = (score / questions.length) * 100;
-      let points = 0;
-      if (percentage === 100) points = 100;
-      else if (percentage >= 80) points = 75;
-      else if (percentage >= 60) points = 50;
-      else if (percentage >= 40) points = 25;
-
-      if (points > 0) {
-        await base44.entities.PointTransaction.create({
-          user_email: user.email,
-          points: points,
-          source: 'quiz',
-          source_id: quiz.id,
-          description: `Scored ${percentage}% on ${selectedCategory} quiz`
-        });
-        queryClient.invalidateQueries(['point-transactions']);
-      }
-
-      return quiz;
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['quiz-attempts']);
+      queryClient.invalidateQueries(['point-transactions']);
+    },
+    onError: (error) => {
+      console.error('Failed to save practice quiz:', error);
+      // Continue anyway, don't block the user
     }
   });
 

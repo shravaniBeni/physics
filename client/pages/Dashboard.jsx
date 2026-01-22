@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { apiRequest, API_CONFIG } from '../config/api';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { 
@@ -18,79 +18,61 @@ import StatsCard from '../Components/ui/StatsCard';
 import ExperimentCard from '../Components/ui/ExperimentCard';
 import { Skeleton } from '../Components/ui/skeleton';
 import DailyChallengeCard from '../Components/gamification/DailyChallengeCard';
-import BadgeCard from '../components/gamification/BadgeCard';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
-  const { data: experiments = [], isLoading: loadingExperiments } = useQuery({
+  const { user } = useAuth();
+
+  const { data: experimentsData, isLoading: loadingExperiments } = useQuery({
     queryKey: ['experiments'],
-    queryFn: () => base44.entities.Experiment.list(),
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.EXPERIMENTS.LIST),
   });
+
+  const experiments = experimentsData?.experiments || [];
 
   const { data: progress = [], isLoading: loadingProgress } = useQuery({
     queryKey: ['user-progress'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.UserProgress.filter({ user_email: user.email });
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.PROGRESS.LIST),
+    enabled: !!user,
   });
 
   const { data: quizAttempts = [] } = useQuery({
     queryKey: ['quiz-attempts'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.QuizAttempt.filter({ user_email: user.email });
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.QUIZ.ATTEMPTS),
+    enabled: !!user,
   });
 
-  const { data: pointTransactions = [] } = useQuery({
+  const { data: pointsData } = useQuery({
     queryKey: ['point-transactions'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.PointTransaction.filter({ user_email: user.email });
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.GAMIFICATION.POINTS),
+    enabled: !!user,
   });
 
   const { data: userBadges = [] } = useQuery({
     queryKey: ['user-badges'],
-    queryFn: async () => {
-      const user = await base44.auth.me();
-      if (!user) return [];
-      return base44.entities.UserBadge.filter({ user_email: user.email });
-    },
-  });
-
-  const { data: currentUser } = useQuery({
-    queryKey: ['current-user'],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.GAMIFICATION.BADGES),
+    enabled: !!user,
   });
 
   const { data: dailyChallenges = [] } = useQuery({
     queryKey: ['daily-challenges'],
-    queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
-      return base44.entities.DailyChallenge.filter({ date: today });
-    },
+    queryFn: () => apiRequest(API_CONFIG.ENDPOINTS.GAMIFICATION.DAILY_CHALLENGES),
+    enabled: !!user,
   });
-
-  const todayChallenge = dailyChallenges[0];
-  const challengeCompleted = todayChallenge?.completed_by?.includes(currentUser?.email);
 
   const completedExperiments = progress.filter(p => p.completed).length;
   const totalTimeMinutes = Math.round(progress.reduce((sum, p) => sum + (p.time_spent_seconds || 0), 0) / 60);
   const avgAccuracy = quizAttempts.length > 0 
     ? Math.round(quizAttempts.reduce((sum, q) => sum + (q.correct_answers / q.total_questions) * 100, 0) / quizAttempts.length)
     : 0;
-  const totalPoints = pointTransactions.reduce((sum, t) => sum + (t.points || 0), 0);
+  const totalPoints = pointsData?.transactions?.reduce((sum, t) => sum + (t.points || 0), 0) || 0;
 
   const recentExperiments = experiments
-    .filter(exp => progress.some(p => p.experiment_id === exp.id))
+    .filter(exp => progress.some(p => p.experiment_id === exp.id || p.experiment_id?._id === exp.id))
     .slice(0, 3);
 
   const suggestedExperiments = experiments
-    .filter(exp => !progress.some(p => p.experiment_id === exp.id && p.completed))
+    .filter(exp => !progress.some(p => (p.experiment_id === exp.id || p.experiment_id?._id === exp.id) && p.completed))
     .slice(0, 4);
 
   return (
@@ -170,16 +152,28 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Daily Challenge & Badges */}
+      {/* Daily Challenges & Badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Daily Challenge */}
-        {todayChallenge ? (
-          <DailyChallengeCard challenge={todayChallenge} completed={challengeCompleted} />
-        ) : (
-          <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-6 flex items-center justify-center text-slate-500">
-            No daily challenge available
-          </div>
-        )}
+        {/* Daily Challenges */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-white">Daily Challenges</h2>
+          {dailyChallenges.length > 0 ? (
+            dailyChallenges.slice(0, 2).map((challenge) => {
+              const challengeCompleted = challenge.completed_by?.includes(user?.email);
+              return (
+                <DailyChallengeCard 
+                  key={challenge._id} 
+                  challenge={challenge} 
+                  completed={challengeCompleted} 
+                />
+              );
+            })
+          ) : (
+            <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-6 flex items-center justify-center text-slate-500">
+              No daily challenges available
+            </div>
+          )}
+        </div>
 
         {/* Recent Badges */}
         <div className="rounded-2xl bg-slate-900/50 border border-slate-800 p-6">
@@ -228,14 +222,17 @@ export default function Dashboard() {
             </div>
           ) : recentExperiments.length > 0 ? (
             <div className="space-y-3">
-              {recentExperiments.map(exp => (
-                <ExperimentCard 
-                  key={exp.id} 
-                  experiment={exp} 
-                  progress={progress.find(p => p.experiment_id === exp.id)}
-                  compact 
-                />
-              ))}
+              {recentExperiments.map(exp => {
+                const expProgress = progress.find(p => p.experiment_id === exp.id || p.experiment_id?._id === exp.id);
+                return (
+                  <ExperimentCard 
+                    key={exp.id} 
+                    experiment={exp} 
+                    progress={expProgress}
+                    compact 
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8 text-slate-500">
