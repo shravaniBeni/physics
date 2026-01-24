@@ -13,6 +13,7 @@ const userProgressRoutes = require('./routes/userProgress');
 const quizRoutes = require('./routes/quiz');
 const gamificationRoutes = require('./routes/gamification');
 const aiRoutes = require('./routes/ai');
+const hardwareRoutes = require('./routes/hardware');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -66,6 +67,7 @@ app.use('/api/experiments', checkDatabaseConnection, experimentRoutes);
 app.use('/api/user-progress', checkDatabaseConnection, userProgressRoutes);
 app.use('/api/quiz', checkDatabaseConnection, quizRoutes);
 app.use('/api/gamification', checkDatabaseConnection, gamificationRoutes);
+app.use('/api/hardware', checkDatabaseConnection, hardwareRoutes);
 app.use('/api/ai', aiRoutes); // AI routes can work without database
 
 // Health check endpoint

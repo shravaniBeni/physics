@@ -15,6 +15,9 @@ import {
   ChevronUp
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { cn } from '../../lib/utils';
 
 export default function ExperimentAI({ experiment }) {
@@ -182,20 +185,41 @@ export default function ExperimentAI({ experiment }) {
                 <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
                   <div className="prose prose-invert prose-sm max-w-none">
                     <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
                       components={{
                         p: ({ children }) => <p className="mb-3 last:mb-0 text-slate-200">{children}</p>,
                         ul: ({ children }) => <ul className="list-disc ml-4 mb-3 text-slate-200">{children}</ul>,
                         ol: ({ children }) => <ol className="list-decimal ml-4 mb-3 text-slate-200">{children}</ol>,
                         li: ({ children }) => <li className="mb-1">{children}</li>,
-                        code: ({ children }) => (
-                          <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono text-sm">
-                            {children}
-                          </code>
-                        ),
+                        code: ({ inline, children }) => 
+                          inline ? (
+                            <code className="px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono text-sm">
+                              {children}
+                            </code>
+                          ) : (
+                            <pre className="bg-slate-800 border border-slate-700 rounded-lg p-3 overflow-x-auto mb-3">
+                              <code className="text-cyan-400 font-mono text-sm">{children}</code>
+                            </pre>
+                          ),
                         strong: ({ children }) => <strong className="text-cyan-400">{children}</strong>,
-                        h1: ({ children }) => <h1 className="text-xl font-bold text-white mb-3">{children}</h1>,
+                        em: ({ children }) => <em className="text-purple-400 italic">{children}</em>,
+                        h1: ({ children }) => <h1 className="text-xl font-bold text-white mb-3 border-b border-slate-700 pb-2">{children}</h1>,
                         h2: ({ children }) => <h2 className="text-lg font-semibold text-white mb-2">{children}</h2>,
                         h3: ({ children }) => <h3 className="text-base font-medium text-white mb-2">{children}</h3>,
+                        // Math components for KaTeX
+                        span: ({ className, children, ...props }) => {
+                          if (className?.includes('math')) {
+                            return <span className={`${className} text-cyan-300`} {...props}>{children}</span>;
+                          }
+                          return <span className={className} {...props}>{children}</span>;
+                        },
+                        div: ({ className, children, ...props }) => {
+                          if (className?.includes('math')) {
+                            return <div className={`${className} text-center my-3 text-cyan-300`} {...props}>{children}</div>;
+                          }
+                          return <div className={className} {...props}>{children}</div>;
+                        }
                       }}
                     >
                       {explanations[activeExplanation]}

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './Components/auth/ProtectedRoute';
 import Login from './Components/auth/Login';
@@ -11,6 +12,7 @@ import Layout from './Layout';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import VirtualLab from './pages/VirtualLab';
+import HardwareLab from './pages/HardwareLab';
 import ExperimentDetail from './pages/ExperimentDetail';
 import ExperimentGuide from './pages/ExperimentGuide';
 import AIAssistant from './pages/AIAssistant';
@@ -75,6 +77,14 @@ function AppContent() {
           <ProtectedRoute>
             <Layout currentPageName="VirtualLab">
               <VirtualLab />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/hardwarelab" element={
+          <ProtectedRoute>
+            <Layout currentPageName="HardwareLab">
+              <HardwareLab />
             </Layout>
           </ProtectedRoute>
         } />
@@ -147,6 +157,11 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppContent />
+        <Toaster 
+          position="top-right"
+          theme="dark"
+          richColors
+        />
       </AuthProvider>
     </QueryClientProvider>
   );

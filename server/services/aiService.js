@@ -142,20 +142,37 @@ You specialize in explaining physics concepts clearly and providing step-by-step
 
 Guidelines:
 - Only answer physics-related questions
-- Use simple, clear language
+- Use clear, well-formatted markdown for better readability
+- Use LaTeX notation for mathematical expressions:
+  * Wrap inline math in single dollar signs: $F = ma$
+  * Wrap display math in double dollar signs: $$F = ma$$
+  * Use proper LaTeX syntax for fractions: $\\frac{1}{2}mv^2$
+  * Use proper LaTeX for subscripts/superscripts: $v_0$, $x^2$
+  * Use \\text{} for units: $g = 9.81 \\, \\text{m/s}^2$
 - Provide examples when helpful
-- Include relevant formulas with explanations
+- Include relevant formulas with proper LaTeX formatting
+- Use headers, bullet points, and formatting to organize information
 - If asked about non-physics topics, politely redirect to physics
 - Be encouraging and supportive
+- NEVER use ** for bold text in math expressions - use proper LaTeX formatting
+- For emphasis in regular text, use **bold** or *italic* markdown
+
+Example LaTeX formatting:
+- Inline math: The acceleration due to gravity is $g = 9.81 \\, \\text{m/s}^2$
+- Display math: $$F = ma$$
+- Complex equations: $$x(t) = A \\cos(\\omega t + \\phi)$$
+- Fractions: $$KE = \\frac{1}{2}mv^2$$
+- Greek letters: $\\alpha$, $\\beta$, $\\gamma$, $\\omega$, $\\theta$
 
 ${context.experiment ? `Current experiment context: ${context.experiment.title} - ${context.experiment.description}` : ''}
-${context.explanationType === 'detailed' ? 'Provide a detailed, comprehensive explanation with derivations and multiple examples.' : 'Provide a concise, clear explanation suitable for quick understanding.'}`;
+${context.explanationType === 'detailed' ? 'Provide a detailed, comprehensive explanation with derivations and multiple examples.' : 'Provide a concise, clear explanation suitable for quick understanding.'}
+${context.analysis_mode ? 'This is for data analysis - focus on interpreting experimental results, calculations, and physics insights.' : ''}`;
 
     const prompt = `${systemPrompt}
 
 Student Question: ${question}
 
-Please provide a helpful response:`;
+Please provide a helpful response using proper markdown formatting and LaTeX for mathematical expressions:`;
 
     try {
       const result = await this.generateContentWithRetry(prompt);
@@ -225,6 +242,131 @@ Format as a numbered list with brief explanations.`;
     } catch (error) {
       console.error('AI study tips error:', error);
       throw new Error('Failed to generate study tips');
+    }
+  }
+
+  async analyzeHardwareExperiment(experimentType, csvData, context = {}) {
+    if (!this.isConfigured()) {
+      throw new Error('AI service not configured. Please set GEMINI_API_KEY.');
+    }
+
+    // Handle CSV upload case
+    if (experimentType === 'csv_upload' && context.csv_content) {
+      const prompt = `You are a physics expert analyzing experimental data from a CSV file upload.
+
+## File Details
+- **Filename**: ${context.filename || 'Unknown'}
+- **File Content Preview**:
+\`\`\`
+${context.csv_content}
+\`\`\`
+
+## Analysis Request
+Please analyze this physics experiment data and provide:
+
+### 1. **Experiment Type Identification**
+- Determine what type of physics experiment this appears to be
+- Identify the measured quantities and units
+
+### 2. **Data Analysis**
+- Statistical analysis of the measurements
+- Identify patterns, trends, and anomalies
+- Calculate relevant physics parameters
+
+### 3. **Physics Interpretation**
+- Explain the underlying physics principles
+- Compare with theoretical expectations
+- Identify key relationships in the data
+
+### 4. **Quality Assessment**
+- Evaluate measurement precision and accuracy
+- Identify potential sources of error
+- Suggest improvements to experimental technique
+
+### 5. **Educational Insights**
+- Key physics concepts demonstrated
+- Real-world applications
+- Connection to other physics topics
+
+Use proper markdown formatting and LaTeX for mathematical expressions:
+- Inline math: $F = ma$
+- Display math: $$F = ma$$
+- Fractions: $\\frac{1}{2}mv^2$
+- Units: $g = 9.81 \\, \\text{m/s}^2$
+- Greek letters: $\\omega$, $\\theta$, $\\alpha$
+- Subscripts/superscripts: $v_0$, $x^2$
+Make the analysis comprehensive and educational.`;
+
+      try {
+        const result = await this.generateContentWithRetry(prompt);
+        const response = await result.response;
+        return response.text();
+      } catch (error) {
+        console.error('AI CSV analysis error:', error);
+        throw new Error('Failed to analyze CSV data');
+      }
+    }
+
+    // Handle live experiment data
+    const prompt = `You are a physics expert analyzing experimental data from a hardware physics lab.
+
+## Experiment Details
+- **Type**: ${experimentType}
+- **Data Points**: ${csvData.length}
+- **Duration**: ${csvData.length} seconds
+- **Measurement Unit**: ${experimentType === 'pendulum' ? 'degrees (angular displacement)' : 'm/s² (acceleration)'}
+
+## Sample Data
+\`\`\`
+${csvData.slice(0, 10).map(d => `Time: ${d.time}s, Value: ${d.value}`).join('\n')}
+${csvData.length > 10 ? '... (showing first 10 points)' : ''}
+\`\`\`
+
+## Analysis Request
+Please provide a comprehensive physics analysis using proper markdown formatting and LaTeX for mathematical expressions. Include:
+
+### 1. **Physics Analysis**
+${experimentType === 'pendulum' ? 
+  '- Calculate the period $T$ and frequency $f = 1/T$\n- Determine amplitude and analyze damping\n- Compare with theoretical pendulum formula: $T = 2\\pi\\sqrt{\\frac{L}{g}}$' :
+  '- Analyze acceleration patterns during free fall\n- Compare with theoretical $g = 9.81 \\, \\text{m/s}^2$\n- Calculate average acceleration and standard deviation'
+}
+
+### 2. **Data Quality Assessment**
+- Statistical analysis (mean, standard deviation, outliers)
+- Measurement precision and accuracy
+- Signal-to-noise ratio evaluation
+
+### 3. **Theoretical vs Experimental Comparison**
+- Expected vs observed values
+- Percentage error calculations
+- Sources of discrepancy
+
+### 4. **Key Physics Principles**
+- Fundamental concepts demonstrated
+- Real-world applications
+- Connection to other physics topics
+
+### 5. **Recommendations**
+- Suggestions for improving experimental setup
+- Ways to reduce measurement errors
+- Additional experiments to try
+
+Use proper LaTeX formatting for all mathematical expressions and equations:
+- Inline math: $F = ma$
+- Display math: $$F = ma$$
+- Fractions: $\\frac{1}{2}mv^2$
+- Units: $g = 9.81 \\, \\text{m/s}^2$
+- Greek letters: $\\omega$, $\\theta$, $\\alpha$
+- Subscripts/superscripts: $v_0$, $x^2$
+Make the analysis educational and detailed for physics students.`;
+
+    try {
+      const result = await this.generateContentWithRetry(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error) {
+      console.error('AI hardware analysis error:', error);
+      throw new Error('Failed to generate hardware experiment analysis');
     }
   }
 

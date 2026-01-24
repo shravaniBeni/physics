@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LaTeX Test</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/katex.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: #1e293b;
+        }
+        .math-inline {
+            color: #67e8f9;
+        }
+        .math-display {
+            color: #67e8f9;
+            text-align: center;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>LaTeX Rendering Test</h1>
+    
+    <div class="test-section">
+        <h2>Test Cases</h2>
+        <p>These should render as proper mathematical expressions:</p>
+        
+        <h3>Inline Math:</h3>
+        <p>Force equation: $F = ma$</p>
+        <p>Kinetic energy: $KE = \frac{1}{2}mv^2$</p>
+        <p>Gravity: $g = 9.81 \, \text{m/s}^2$</p>
+        
+        <h3>Display Math:</h3>
+        <p>Newton's second law:</p>
+        $$F = ma$$
+        
+        <p>Kinetic energy formula:</p>
+        $$KE = \frac{1}{2}mv^2$$
+        
+        <p>Wave equation:</p>
+        $$v = f\lambda$$
+        
+        <h3>Complex Expressions:</h3>
+        <p>Pendulum period:</p>
+        $$T = 2\pi\sqrt{\frac{L}{g}}$$
+        
+        <p>Quadratic formula:</p>
+        $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/contrib/auto-render.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        });
+    </script>
+</body>
+</html>

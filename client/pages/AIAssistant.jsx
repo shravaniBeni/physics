@@ -22,6 +22,9 @@ import {
   Menu
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { cn } from '../../lib/utils';
 
 const suggestedQuestions = [
@@ -376,20 +379,59 @@ export default function AIAssistant({ experimentId = null, experimentTitle = nul
                       {msg.role === 'assistant' ? (
                         <div className="prose prose-invert prose-lg max-w-none">
                           <ReactMarkdown
+                            remarkPlugins={[remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
                             components={{
                               p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed text-slate-200">{children}</p>,
                               ul: ({ children }) => <ul className="list-disc ml-5 mb-4 space-y-2 text-slate-200">{children}</ul>,
                               ol: ({ children }) => <ol className="list-decimal ml-5 mb-4 space-y-2 text-slate-200">{children}</ol>,
                               li: ({ children }) => <li className="leading-relaxed text-slate-200">{children}</li>,
-                              code: ({ children }) => (
-                                <code className="px-2 py-1 rounded-md bg-slate-800 text-cyan-400 font-mono text-sm border border-slate-700">
-                                  {children}
-                                </code>
-                              ),
+                              code: ({ inline, children }) => 
+                                inline ? (
+                                  <code className="px-2 py-1 rounded-md bg-slate-800 text-cyan-400 font-mono text-sm border border-slate-700">
+                                    {children}
+                                  </code>
+                                ) : (
+                                  <pre className="bg-slate-800 border border-slate-700 rounded-lg p-4 overflow-x-auto mb-4">
+                                    <code className="text-cyan-400 font-mono text-sm">{children}</code>
+                                  </pre>
+                                ),
+                              pre: ({ children }) => <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 overflow-x-auto mb-4">{children}</div>,
                               strong: ({ children }) => <strong className="text-cyan-400 font-semibold">{children}</strong>,
-                              h1: ({ children }) => <h1 className="text-xl font-bold text-white mb-3">{children}</h1>,
+                              em: ({ children }) => <em className="text-purple-400 italic">{children}</em>,
+                              h1: ({ children }) => <h1 className="text-xl font-bold text-white mb-3 border-b border-slate-700 pb-2">{children}</h1>,
                               h2: ({ children }) => <h2 className="text-lg font-semibold text-white mb-2">{children}</h2>,
                               h3: ({ children }) => <h3 className="text-base font-medium text-white mb-2">{children}</h3>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-cyan-500 pl-4 py-2 bg-slate-800/50 rounded-r-lg mb-4 text-slate-300 italic">
+                                  {children}
+                                </blockquote>
+                              ),
+                              table: ({ children }) => (
+                                <div className="overflow-x-auto mb-4">
+                                  <table className="min-w-full border border-slate-700 rounded-lg overflow-hidden">
+                                    {children}
+                                  </table>
+                                </div>
+                              ),
+                              thead: ({ children }) => <thead className="bg-slate-800">{children}</thead>,
+                              tbody: ({ children }) => <tbody className="bg-slate-900/50">{children}</tbody>,
+                              tr: ({ children }) => <tr className="border-b border-slate-700">{children}</tr>,
+                              th: ({ children }) => <th className="px-4 py-2 text-left text-cyan-400 font-semibold">{children}</th>,
+                              td: ({ children }) => <td className="px-4 py-2 text-slate-200">{children}</td>,
+                              // Math components for KaTeX
+                              span: ({ className, children, ...props }) => {
+                                if (className?.includes('math')) {
+                                  return <span className={`${className} text-cyan-300`} {...props}>{children}</span>;
+                                }
+                                return <span className={className} {...props}>{children}</span>;
+                              },
+                              div: ({ className, children, ...props }) => {
+                                if (className?.includes('math')) {
+                                  return <div className={`${className} text-center my-4 text-cyan-300`} {...props}>{children}</div>;
+                                }
+                                return <div className={className} {...props}>{children}</div>;
+                              }
                             }}
                           >
                             {msg.content}

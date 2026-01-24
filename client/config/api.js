@@ -45,6 +45,13 @@ export const API_CONFIG = {
       LEADERBOARD: '/api/gamification/leaderboard',
       DAILY_CHALLENGES: '/api/gamification/daily-challenges'
     },
+    HARDWARE: {
+      EXPERIMENTS: '/api/hardware/experiments',
+      START_EXPERIMENT: '/api/hardware/experiments/start',
+      STOP_EXPERIMENT: '/api/hardware/experiments',
+      LIVE_DATA: '/api/hardware/experiments',
+      CSV_DOWNLOAD: '/api/hardware/experiments'
+    },
     AI: {
       CHAT: '/api/ai/chat',
       EXPERIMENT_EXPLANATION: '/api/ai/experiment',

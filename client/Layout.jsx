@@ -17,7 +17,8 @@ import {
   User,
   Settings,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Cpu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PointsDisplay from './Components/gamification/PointsDisplay';
@@ -25,7 +26,8 @@ import PointsDisplay from './Components/gamification/PointsDisplay';
 const navItems = [
   { name: 'Dashboard', icon: Home, page: 'Dashboard' },
   { name: 'Virtual Lab', icon: FlaskConical, page: 'VirtualLab' },
-  { name: 'Experiment Guide', icon: BookOpen, page: 'ExperimentGuide' },
+  { name: 'Hardware Lab', icon: Cpu, page: 'HardwareLab' },
+  // { name: 'Experiment Guide', icon: BookOpen, page: 'ExperimentGuide' },
   { name: 'AI Assistant', icon: MessageCircle, page: 'AIAssistant' },
   { name: 'Concept Visualizer', icon: Lightbulb, page: 'ConceptVisualizer' },
   { name: 'Practice & Quiz', icon: ClipboardCheck, page: 'Practice' },
@@ -141,7 +143,7 @@ export default function Layout({ children, currentPageName }) {
               <Atom className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-xl gradient-text">Physics Pocket Lab</h1>
+              <h1 className="font-bold text-xl gradient-text">Quant IQ</h1>
               <p className="text-xs text-slate-500">Virtual Experiments</p>
             </div>
           </div>
